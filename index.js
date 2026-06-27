@@ -30,7 +30,7 @@ app.get('/api/user/:username', async (req, res) => {
     }
 
     const ghRes = await axios.get(
-      'https://github.com/skyler1325/peopleChat-server' + 
+      'https://github.com/skyler1325/peopleChat-server/database/' + 
       req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '') + 
       '.json', 
       config
@@ -67,7 +67,7 @@ app.post('/api/register', async (req, res) => {
     config.headers['Authorization'] = 'token ' + process.env.GH_TOKEN;
   }
 
-  const targetUrl = 'https://github.com/peopleChat-server' + 
+  const targetUrl = 'https://github.com/peopleChat-server/database/' + 
                     String(req.body.username).toLowerCase().replace(/[^a-z0-9]/g, '') + 
                     '.json';
 
