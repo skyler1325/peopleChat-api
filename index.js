@@ -25,14 +25,27 @@ app.get('/api/user/:username', async (req, res) => {
   const url = `https://github.com{REPO}/contents/database/${user}.json`;
 
   try {
-    const ghRes = await fetch(url);
-    if (!ghRes.ok) return res.status(404).json({ error: 'USER_NOT_FOUND' });
-
+    const ghRes = await fetch(url, {
+      headers: {
+        'User-Agent': 'PenguinMod-Auth-Server'
+      }
+    });
+    
+    if (ghRes.status === 404) {
+      return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    }
+    
+    if (!ghRes.ok) {
+      // This will pull the actual error message directly from GitHub (e.g. Bad credentials, repo not found)
+      const errText = await ghRes.text();
+      return res.status(ghRes.status).json({ error: `GitHub API Error: ${errText}` });
+    }
+    
     const data = await ghRes.json();
     const content = Buffer.from(data.content, 'base64').toString('utf-8');
     res.json(JSON.parse(content));
   } catch (e) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: `Network/Server Fetch Error: ${e.message}` });
   }
 });
 
