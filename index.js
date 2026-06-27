@@ -17,7 +17,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // ⚠️ CHANGE THIS to your exact username and your dummy chat storage repo
-const REPO = "YourGitHubUsername/YourChatRepoName"; 
+const REPO = "skyler1325/peopleChat-server"; 
 const TOKEN = process.env.GH_TOKEN;
 
 app.get('/api/user/:username', async (req, res) => {
