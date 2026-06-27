@@ -67,7 +67,7 @@ app.post('/api/register', async (req, res) => {
     config.headers['Authorization'] = 'token ' + process.env.GH_TOKEN;
   }
 
-  const targetUrl = 'https://github.com' + 
+  const targetUrl = 'https://github.com/peopleChat-server' + 
                     String(req.body.username).toLowerCase().replace(/[^a-z0-9]/g, '') + 
                     '.json';
 
