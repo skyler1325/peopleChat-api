@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 
@@ -16,8 +17,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ⚠️ CHANGE THIS to your exact username and your dummy chat storage repo
-const REPO = "skyler1325/peopleChat-server"; 
+// Ensure this matches your exact user and repo configuration
+const REPO = "skyler1325/peopleChat-api"; 
 const TOKEN = process.env.GH_TOKEN;
 
 app.get('/api/user/:username', async (req, res) => {
@@ -25,62 +26,82 @@ app.get('/api/user/:username', async (req, res) => {
   const url = `https://github.com{REPO}/contents/database/${user}.json`;
 
   try {
-    const ghRes = await fetch(url, {
+    const config = {
       headers: {
         'User-Agent': 'PenguinMod-Auth-Server'
       }
-    });
+    };
     
-    if (ghRes.status === 404) {
-      return res.status(404).json({ error: 'USER_NOT_FOUND' });
+    // Attach authorization header if token exists
+    if (TOKEN) {
+      config.headers['Authorization'] = `token ${TOKEN}`;
     }
+
+    const ghRes = await axios.get(url, config);
     
-    if (!ghRes.ok) {
-      // This will pull the actual error message directly from GitHub (e.g. Bad credentials, repo not found)
-      const errText = await ghRes.text();
-      return res.status(ghRes.status).json({ error: `GitHub API Error: ${errText}` });
-    }
-    
-    const data = await ghRes.json();
-    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+    // Parse the Base64 file contents safely
+    const content = Buffer.from(ghRes.data.content, 'base64').toString('utf-8');
     res.json(JSON.parse(content));
+
   } catch (e) {
-    res.status(500).json({ error: `Network/Server Fetch Error: ${e.message}` });
+    if (e.response) {
+      // Handles clear response errors coming straight from GitHub
+      if (e.response.status === 404) {
+        return res.status(404).json({ error: 'USER_NOT_FOUND' });
+      }
+      return res.status(e.response.status).json({ 
+        error: `GitHub API Error: ${e.response.status}`, 
+        details: e.response.data 
+      });
+    }
+    // Generic catchall fallback if the network route itself drops
+    res.status(500).json({ error: `Connection failed: ${e.message}` });
   }
 });
 
 app.post('/api/register', async (req, res) => {
   const { username, hash } = req.body;
   const user = String(username).toLowerCase().replace(/[^a-z0-9]/g, '');
-
+  
   if (!user || !hash) return res.status(400).json({ error: 'Missing data' });
   const url = `https://github.com{REPO}/contents/database/${user}.json`;
 
+  const config = {
+    headers: {
+      'User-Agent': 'PenguinMod-Auth-Server'
+    }
+  };
+  
+  if (TOKEN) {
+    config.headers['Authorization'] = `token ${TOKEN}`;
+  }
+
   try {
-    const check = await fetch(url);
-    if (check.ok) return res.status(409).json({ error: 'EXISTS' });
-
-    const body = {
-      message: `New User: ${user}`,
-      content: Buffer.from(JSON.stringify({ passwordHash: hash })).toString('base64')
-    };
-
-    const ghRes = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (ghRes.ok) res.json({ success: true });
-    else res.status(500).json({ error: 'Failed to write' });
+    // Check if the user profile exists
+    await axios.get(url, config);
+    return res.status(409).json({ error: 'EXISTS' });
   } catch (e) {
-    res.status(500).json({ error: 'Server error' });
+    // If it returns a 404, the username is available! Proceed to write.
+    if (e.response && e.response.status === 404) {
+      const body = {
+        message: `New User: ${user}`,
+        content: Buffer.from(JSON.stringify({ passwordHash: hash })).toString('base64')
+      };
+
+      try {
+        await axios.put(url, body, config);
+        return res.json({ success: true });
+      } catch (writeErr) {
+        return res.status(500).json({ 
+          error: 'Failed to write user to database structure.',
+          details: writeErr.response ? writeErr.response.data : writeErr.message
+        });
+      }
+    }
+    
+    res.status(500).json({ error: 'Database check failed completely.' });
   }
 });
 
-// Render dynamically assigns a port, fallback to 3000 locally
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Secure server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Secure server running stable on port ${PORT}`));
