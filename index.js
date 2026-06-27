@@ -3,7 +3,6 @@ const cors = require('cors');
 
 const app = express();
 
-// Security: Allow requests ONLY from PenguinMod
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin || origin.includes('penguinmod.com') || origin.includes('localhost')) {
@@ -17,13 +16,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-const REPO = "YourUsername/YourRepoName"; // 👈 Change to your GitHub repo
+// ⚠️ CHANGE THIS to your exact username and your dummy chat storage repo
+const REPO = "YourGitHubUsername/YourChatRepoName"; 
 const TOKEN = process.env.GH_TOKEN;
 
-// Route: Get stored password hash
 app.get('/api/user/:username', async (req, res) => {
   const user = req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const url = `https://api.github.com/repos/${REPO}/contents/database/${user}.json`;
+  const url = `https://github.com{REPO}/contents/database/${user}.json`;
 
   try {
     const ghRes = await fetch(url);
@@ -37,17 +36,14 @@ app.get('/api/user/:username', async (req, res) => {
   }
 });
 
-// Route: Create new user account
 app.post('/api/register', async (req, res) => {
   const { username, hash } = req.body;
   const user = String(username).toLowerCase().replace(/[^a-z0-9]/g, '');
 
   if (!user || !hash) return res.status(400).json({ error: 'Missing data' });
-
-  const url = `https://api.github.com/repos/${REPO}/contents/database/${user}.json`;
+  const url = `https://github.com{REPO}/contents/database/${user}.json`;
 
   try {
-    // Check if username is already taken
     const check = await fetch(url);
     if (check.ok) return res.status(409).json({ error: 'EXISTS' });
 
@@ -72,4 +68,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log('Secure server running!'));
+// Render dynamically assigns a port, fallback to 3000 locally
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Secure server running on port ${PORT}`));
