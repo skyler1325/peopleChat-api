@@ -23,7 +23,7 @@ const TOKEN = process.env.GH_TOKEN;
 
 app.get('/api/user/:username', async (req, res) => {
   const user = req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const url = `https://github.com{REPO}/contents/database/${user}.json`;
+  const url = `https://github.com/skyler1325/peopleChat-api/contents/database/${user}.json`;
 
   try {
     const config = {
@@ -64,7 +64,7 @@ app.post('/api/register', async (req, res) => {
   const user = String(username).toLowerCase().replace(/[^a-z0-9]/g, '');
   
   if (!user || !hash) return res.status(400).json({ error: 'Missing data' });
-  const url = `https://github.com{REPO}/contents/database/${user}.json`;
+  const url = `https://github.com/skyler1325/peopleChat-api/contents/database/${user}.json`;
 
   const config = {
     headers: {
