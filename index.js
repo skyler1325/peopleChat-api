@@ -30,7 +30,7 @@ app.get('/api/user/:username', async (req, res) => {
     }
 
     const ghRes = await axios.get(
-      'https://github.com' + 
+      'https://github.com/skyler1325/peopleChat-server' + 
       req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '') + 
       '.json', 
       config
