@@ -19,36 +19,22 @@ app.use(express.json());
 
 app.get('/api/user/:username', async (req, res) => {
   try {
-    const config = {
-      headers: {
-        'User-Agent': 'PenguinMod-Auth-Server'
-      }
-    };
-    
+    const config = { headers: { 'User-Agent': 'PenguinMod-Auth-Server' } };
     if (process.env.GH_TOKEN) {
       config.headers['Authorization'] = 'token ' + process.env.GH_TOKEN;
     }
 
-    const ghRes = await axios.get(
-      'https://github.com/skyler1325/peopleChat-server/database/' + 
-      req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '') + 
-      '.json', 
-      config
-    );
-    
+    const usernameSanitized = req.params.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const url = 'https://github.com/skyler1325/peopleChat-server/database/' + usernameSanitized + '.json';
+
+    const ghRes = await axios.get(url, config);
     res.json(JSON.parse(Buffer.from(ghRes.data.content, 'base64').toString('utf-8')));
 
   } catch (e) {
-    if (e.response) {
-      if (e.response.status === 404) {
-        return res.status(404).json({ error: 'USER_NOT_FOUND' });
-      }
-      return res.status(e.response.status).json({ 
-        error: 'GitHub API Error: ' + e.response.status, 
-        details: e.response.data 
-      });
+    if (e.response && e.response.status === 404) {
+      return res.status(404).json({ error: 'USER_NOT_FOUND' });
     }
-    res.status(500).json({ error: 'Connection failed: ' + e.message });
+    res.status(500).json({ error: 'Server read error' });
   }
 });
 
@@ -57,43 +43,40 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ error: 'Missing data' });
   }
 
-  const config = {
-    headers: {
-      'User-Agent': 'PenguinMod-Auth-Server'
-    }
-  };
-  
+  const config = { headers: { 'User-Agent': 'PenguinMod-Auth-Server' } };
   if (process.env.GH_TOKEN) {
     config.headers['Authorization'] = 'token ' + process.env.GH_TOKEN;
   }
 
-  const targetUrl = 'https://github.com/peopleChat-server/database/' + 
-                    String(req.body.username).toLowerCase().replace(/[^a-z0-9]/g, '') + 
-                    '.json';
+  const usernameSanitized = String(req.body.username).toLowerCase().replace(/[^a-z0-9]/g, '');
+  // FIXED: Added the explicit trailing slash after database
+  const targetUrl = 'https://github.com/skyler1325/peopleChat-server/database/' + usernameSanitized + '.json';
 
   try {
+    // Check if user profile already exists
     await axios.get(targetUrl, config);
     return res.status(409).json({ error: 'EXISTS' });
   } catch (e) {
+    // If 404, the username is available for registration
     if (e.response && e.response.status === 404) {
       try {
-        await axios.put(
-          targetUrl, 
-          {
-            message: 'New User: ' + String(req.body.username).toLowerCase().replace(/[^a-z0-9]/g, ''),
-            content: Buffer.from(JSON.stringify({ passwordHash: String(req.body.hash) })).toString('base64')
-          }, 
-          config
-        );
+        const payload = {
+          message: 'Create user: ' + usernameSanitized,
+          content: Buffer.from(JSON.stringify({ passwordHash: String(req.body.hash) })).toString('base64')
+        };
+        
+        await axios.put(targetUrl, payload, config);
         return res.json({ success: true });
       } catch (writeErr) {
+        // FIXED: Completely cleaned up typo properties to prevent hard runtime crashes
+        const errDetails = writeErr.response ? writeErr.response.data : writeErr.message;
         return res.status(500).json({ 
-          error: 'Failed to write user to database structure.',
-          details: writeErr.response ? writeErr.writeErr.response.data : writeErr.message
+          error: 'GitHub write rejected.', 
+          details: errDetails 
         });
       }
     }
-    res.status(500).json({ error: 'Database check failed completely.' });
+    res.status(500).json({ error: 'Database verification pathway failed' });
   }
 });
 
